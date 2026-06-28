@@ -1,0 +1,30 @@
+name: ERP Sandbox CI Pipeline
+
+# Trigger this workflow every time someone pushes to the main branch
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    # Run this automation on a hosted clean Ubuntu machine in the cloud
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Pull down the repository code onto the runner
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the correct Node.js version environment
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-with-version: '24'
+
+      # Step 3: Run our test script directly on the runner
+      - name: Run Test Script
+        run: node server.js
+
+      # Step 4: Verify that the Dockerfile builds successfully in the cloud
+      - name: Test Docker Build Lifecycle
+        run: docker build -t cloud-erp-test .
