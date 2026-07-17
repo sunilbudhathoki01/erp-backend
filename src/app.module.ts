@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import dbConfig from './config/db.config';
 import { envValidationSchema } from './config/env.validation';
+import { UserModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { envValidationSchema } from './config/env.validation';
         synchronize: config.get<boolean>('database.synchronize'),
       }),
     }),
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
