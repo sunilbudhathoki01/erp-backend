@@ -12,7 +12,7 @@ async function bootstrap() {
       transform: true, // auto-converts payloads into DTO class instances
     }),
   );
-  await app.listen(process.env.PORT ?? 3000);
   setupSwagger(app);
+  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

@@ -9,6 +9,7 @@ export class PageMetaDto {
 
   @ApiProperty()
   totalNumber!: number;
+
   @ApiProperty()
   totalItems!: number;
 

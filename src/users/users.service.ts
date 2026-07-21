@@ -1,53 +1,159 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { CreateUserDto } from './dto/create-user.dto';
+import { RequestUser } from 'src/common/types/global.types';
 import * as bcrypt from 'bcrypt';
+import { UserQueryDto } from './dto/user-query.dto';
+import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
+import { paginate } from 'src/utils/paginate.utils';
+import { updateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
   constructor(
-    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+    private readonly dataSource: DataSource, // reserved: multi-table ops later use queryRunner, see class-stream-group pattern
   ) {}
 
-  //   create a User
-  async create(data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    address: string;
-    phoneNumber: string;
-    password: string;
-  }): Promise<{ data: User; message: string }> {
-    const existing = await this.userRepo.findOne({
-      where: { email: data.email },
-    });
-    if (existing) {
-      throw new ConflictException('Email already exists');
+  async create(
+    dto: CreateUserDto,
+    currentUser?: RequestUser,
+  ): Promise<{ data: string; message: string }> {
+    try {
+      const existing = await this.usersRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existing) {
+        throw new ConflictException('user already exist');
+      }
+      const hashPassword = await bcrypt.hash(dto.password, 10);
+      const user = this.usersRepository.create({
+        ...dto,
+        password: hashPassword,
+        createdBy: currentUser?.userId,
+      });
+      const saved = await this.usersRepository.save(user);
+      return { data: saved.id, message: 'user created successfully' };
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      this.logger.error(
+        `Failed to create user: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('Failed to create user');
     }
-    const hashPassword = await bcrypt.hash(data.password, 10);
-    const user = this.userRepo.create({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      address: data.address,
-      phoneNumber: data.phoneNumber,
-      password: hashPassword,
-    });
-    const saved = await this.userRepo.save(user);
-    return { data: saved, message: 'dskj' };
   }
 
-  //   findByEmail
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepo
+    return this.usersRepository
       .createQueryBuilder('user')
-      .where('user.email=:email', { email })
-      .addSelect('user.password')
+      .addSelect('password')
+      .where('user.email:email', { email })
       .getOne();
   }
 
-  async findById(id: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { id } });
+  async findOne(id: string): Promise<User> {
+    try {
+      const user = await this.usersRepository.findOne({ where: { id } });
+      if (!user) {
+        throw new NotFoundException(`user with the id:${id} not found`);
+      }
+      return user;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `failed to find user ${id}:${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('failed to find user');
+    }
+  }
+
+  async findAll(query: UserQueryDto): Promise<PaginatedResponseDto<User>> {
+    try {
+      const qb = this.usersRepository.createQueryBuilder('user');
+      if (query.search) {
+        qb.andWhere(
+          '(user.firstName ILIKE :serach OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+          { search: `%${query.search}%` },
+        );
+      }
+      if (query.role) {
+        qb.andWhere('user.role :role', { role: query.role });
+      }
+      if (query.status) {
+        qb.andWhere('user.status :status', { status: query.status });
+      }
+      qb.orderBy('user.createdAt', query.order);
+      return await paginate(qb, query);
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `failed to list user ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('failed to list users');
+    }
+  }
+
+  async update(
+    id: string,
+    dto: updateUserDto,
+    currentUser?: RequestUser,
+  ): Promise<{ data: string; message: string }> {
+    try {
+      const user = await this.findOne(id);
+      if (!currentUser) {
+        throw new InternalServerErrorException(
+          'currentUser is required to update a user',
+        );
+      }
+      Object.assign(user, dto);
+      user.updatedBy = currentUser.userId;
+      const saved = await this.usersRepository.save(user);
+      return { data: saved.id, message: 'user updated successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `Failed to update user ${id}: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('Failed to update user');
+    }
+  }
+
+  async remove(
+    id: string,
+    currentUser?: RequestUser,
+  ): Promise<{ message: string }> {
+    try {
+      const user = await this.findOne(id); // reuses NotFoundException handling above
+      if (!currentUser) {
+        throw new InternalServerErrorException(
+          'currentUser is required to delete a user',
+        );
+      }
+      user.deletedBy = currentUser.userId;
+      await this.usersRepository.save(user); // persist deletedBy before the soft-delete timestamp
+      await this.usersRepository.softDelete(id); // sets deleted_at via @DeleteDateColumn — row stays, excluded from default queries
+      return { message: 'User deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `Failed to delete user ${id}: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('Failed to delete user');
+    }
   }
 }
