@@ -58,7 +58,7 @@ export class UserService {
     return this.usersRepository
       .createQueryBuilder('user')
       .addSelect('password')
-      .where('user.email:email', { email })
+      .where('user.email = :email', { email })
       .getOne();
   }
 
