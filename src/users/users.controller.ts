@@ -19,7 +19,7 @@ export class UserController {
     @Body() dto: CreateUserDto,
     @CurrentUser() currentUser: RequestUser,
   ) {
-    await this.userService.create(dto, currentUser);
+    return this.userService.create(dto, currentUser);
   }
 
   @Get()

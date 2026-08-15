@@ -57,7 +57,7 @@ export class UserService {
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository
       .createQueryBuilder('user')
-      .addSelect('password')
+      .addSelect('user.password')
       .where('user.email = :email', { email })
       .getOne();
   }
@@ -113,13 +113,8 @@ export class UserService {
   ): Promise<{ data: string; message: string }> {
     try {
       const user = await this.findOne(id);
-      if (!currentUser) {
-        throw new InternalServerErrorException(
-          'currentUser is required to update a user',
-        );
-      }
       Object.assign(user, dto);
-      user.updatedBy = currentUser.userId;
+      user.updatedBy = currentUser?.userId;
       const saved = await this.usersRepository.save(user);
       return { data: saved.id, message: 'user updated successfully' };
     } catch (error) {
@@ -138,12 +133,7 @@ export class UserService {
   ): Promise<{ message: string }> {
     try {
       const user = await this.findOne(id); // reuses NotFoundException handling above
-      if (!currentUser) {
-        throw new InternalServerErrorException(
-          'currentUser is required to delete a user',
-        );
-      }
-      user.deletedBy = currentUser.userId;
+      user.deletedBy = currentUser?.userId;
       await this.usersRepository.save(user); // persist deletedBy before the soft-delete timestamp
       await this.usersRepository.softDelete(id); // sets deleted_at via @DeleteDateColumn — row stays, excluded from default queries
       return { message: 'User deleted successfully' };
