@@ -4,11 +4,11 @@ import { Body, Get, Post, UseGuards } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { RequestUser } from 'src/common/types/global.types';
-import { JwtGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgetPasswordDto } from './dto/forget-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiController('auth')
 export class AuthController {
@@ -21,7 +21,7 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @UseGuards(JwtGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get authenticated user' })
   async getMe(@CurrentUser() currentUser: RequestUser) {
     return this.authService.getProfile(currentUser.userId);
@@ -35,7 +35,7 @@ export class AuthController {
 
   @Post('logout')
   @ApiBearerAuth()
-  @UseGuards(JwtGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Logout (stub — real invalidation requires Redis, M6)',
   })

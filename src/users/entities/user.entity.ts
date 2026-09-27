@@ -1,5 +1,5 @@
 import { BaseEntity } from 'src/common/entities/base.entity';
-import { status, userRole } from 'src/common/types/fieldsEnum.types';
+import { status, UserRole } from 'src/common/types/fieldsEnum.types';
 import { Column, Entity, Index } from 'typeorm';
 
 @Entity('users')
@@ -29,10 +29,10 @@ export class User extends BaseEntity {
   @Index()
   @Column({
     type: 'enum',
-    enum: userRole,
-    default: userRole.USER,
+    enum: UserRole,
+    default: UserRole.USER,
   })
-  role!: userRole;
+  role!: UserRole;
 
   @Column({
     name: 'status',
