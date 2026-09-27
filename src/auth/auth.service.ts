@@ -42,6 +42,7 @@ export class AuthService {
         this.logger.warn(`failed login attempt for ${dto.password}`);
         throw new UnauthorizedException('Invalid credentials');
       }
+
       const tokens = this.generateTokens({
         userId: user.id,
         email: user.email,
@@ -59,7 +60,10 @@ export class AuthService {
         },
       };
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException
+      ) {
         throw error;
       }
       this.logger.error(

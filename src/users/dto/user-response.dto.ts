@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
-import { status, userRole } from 'src/common/types/fieldsEnum.types';
+import { status, UserRole } from 'src/common/types/fieldsEnum.types';
 
 @Exclude()
 export class UserResponseDto {
@@ -10,7 +10,7 @@ export class UserResponseDto {
   @Expose() @ApiProperty() lastName!: string;
   @Expose() @ApiProperty() email!: string;
   @Expose() @ApiProperty() phoneNumber!: string;
-  @Expose() @ApiProperty({ enum: userRole }) role!: userRole;
+  @Expose() @ApiProperty({ enum: UserRole }) role!: UserRole;
   @Expose() @ApiProperty({ enum: status }) status!: status;
   @Expose() @ApiProperty() createdAt!: Date;
 
